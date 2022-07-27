@@ -5,6 +5,8 @@ import json
 import argparse
 from mapper import symbol
 from mail import Mail
+from datetime import datetime
+import time
 
 
 def get_data(sec, receiver_email):
@@ -35,22 +37,31 @@ def get_data(sec, receiver_email):
                     'amount': cols[7].text.strip(),
                     'previous_closing': cols[8].text.strip()
                 }
-                if float(dictionary[mapped]['max_price'])>=float(sec[sec['symbol']==mapped]['high'].iloc[0]):
-                    message.append(f"Upper Bound breached by security <b>{mapped}</b> <br>")
-    
-                if float(dictionary[mapped]['min_price'])<=float(sec[sec['symbol']==mapped]['low'].iloc[0]):
-                    message.append(f"Lower Bound breached by security <b>{mapped}</b> <br>")
+                inx = sec[sec['symbol']==mapped].index.values[0]
+                if float(dictionary[mapped]['max_price']) >= float(sec[sec['symbol']==mapped]['high'].iloc[0]):
+                    message.append(f"Upper Bound breached by security <b>{mapped}</b>; new high price is {dictionary[mapped]['max_price']} <br>")
+                    sec.at[inx, 'high'] = float(dictionary[mapped]['max_price']) + 1
+
+                elif float(dictionary[mapped]['min_price']) <= float(sec[sec['symbol']==mapped]['low'].iloc[0]):
+                    message.append(f"Lower Bound breached by security <b>{mapped}</b>; new low price is {dictionary[mapped]['max_price']} <br>")
+                    sec.at[inx, 'low'] = float(dictionary[mapped]['min_price']) - 1
+            
             if len(security_list) == 0:
                 break
         if len(security_list) == 0:
             break
     if len(message) != 0 :
         mail = Mail()
-        mail.send(receiver_email, message)
+        try:
+            mail.send(receiver_email, message)
+        except:
+            print('Error Sending Email')
+            pass
+    return sec
 
 if __name__ == '__main__':
     sec = pd.read_csv('security.csv')
-    parser = argparse.ArgumentParser(description="Emails which are to be notified...")
+    parser = argparse.ArgumentParser(description = "Emails addresses which are to be notified...")
     parser.add_argument(
         "--emails",
         dest="emails",
@@ -59,4 +70,13 @@ if __name__ == '__main__':
     )
     known_cmd, _ = parser.parse_known_args()
     emails = known_cmd.emails.split(',')
-    get_data(sec, emails)
+    while True:
+        sec = get_data(sec, emails)
+        current_time = str(datetime.now())
+        print(current_time)
+        hr = int(current_time.split(' ')[1].split(':')[0])
+        time.sleep(300)
+        if hr >= 15:
+            break
+
+        

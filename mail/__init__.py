@@ -26,5 +26,6 @@ class Mail:
         
         for email in emails:
             result = service.sendmail(self.sender_mail, email, body.as_string())
+            print(f"Email has been sent to {email}")
 
         service.quit()
